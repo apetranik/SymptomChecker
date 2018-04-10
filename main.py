@@ -29,22 +29,50 @@ class SymptomChecker:
         print("How are you feeling?")
         text = input("How are you feeling?")
 
+
+    # takes in a list of bodyLocations and all body subLocations and determines the user's affected areas
+    # will return a sublocation
+    def getUserInfo(self, bodyLocations, bodySubLocations):
         # get bodyLocation and subLocation based on inputif applicable
         bodyLocation = self.determineBodyLocation(bodyLocations, text)
         bodySubLocation = self.determineBodySubLocation(bodySubLocations, text)
 
+        # bodyLocation = NULL, bodySubLocation = NULL
         # could not find the bodyLocation or subLocation specified
         if (bodyLocation is None and bodySubLocation is None):
-            print("I'm not sure exactly where you are being affected. Could you pick from this list?")
-            self.printBodyLocations(bodyLocations)
+            # keep asking for body location until they chose one of the selected
+            while (bodyLocation is None):
+                print(
+                    "I'm not sure exactly where you are being affected. Could you pick from this list of body locations?")
+                self.printBodyLocations(bodyLocations)
+                text = input()
+                bodyLocation = self.determineBodyLocation(bodyLocations, text)
 
+        # bodyLocation = NULL, bodySubLocation = NOT NULL
         # user gave a subLocation but no bodyLocation
         if (bodyLocation is None and bodySubLocation is not None):
+        # keep bodyLocation as null, user just has sublocation
 
-        # user gave a bodyLocation but no sublocation
-        # must determine sublocation
+        # bodyLocation = NOT NULL, bodySubLocation = NULL
+        # user gave a bodyLocation but no sublocation, must determine sublocation
         if (bodyLocation is not None and bodySubLocation is None):
-            bodySubLocation = self.detereminBodySubLocation(bodyLocation)
+            newBodySubLocations = self.detereminBodySubLocation(
+                bodyLocation)  # get subLocations from selected bodyLocation
+            newBodySubLocation = None
+            # keep asking for body sublocation until they have chosen one of the selected
+            while (newBodySubLocation is None):
+                print(
+                    "based on the body location that you chose: " + bodyLocation + " please select a subLocation from this list")
+                self.printBodySubLocations(newBodySubLocations)
+                newBodySubLocation = input()
+
+            bodySubLocation = newBodySubLocation
+
+        # bodyLocation = NOT NULL, bodySubLocation = NOT NULL
+        # user gave a location can go in either both a bodyLocation and subLocation
+        if (bodyLocation is not None and bodySubLocation is not None):
+
+    # don't do anything, just use sublocation
 
     # get all sublocations for all bodylocations
     def getAllSubLocations(self, bodyLocations):

@@ -3,7 +3,6 @@ import random
 import config
 import sys
 import json
-import sys
 
 
 class SymptomChecker:
@@ -17,7 +16,7 @@ class SymptomChecker:
         language = config.language
         self._printRawOutput = config.pritnRawOutput
 
-        self._diagnosisClient = helper.DiagnosisClient(username, password, authUrl, language, healthUrl)
+        self._diagnosisClient = helper.Helper(username, password, authUrl, language, healthUrl)
 
     # starts here
     def start(self):
@@ -25,159 +24,137 @@ class SymptomChecker:
         bodyLocations = self._diagnosisClient.loadBodyLocations()
         bodySubLocations = self.getAllSubLocations(bodyLocations)
 
+
+
         # get user input
-        print("How are you feeling?")
-        text = input("How are you feeling?")
+        text = input("Where are you experiencing pain?\n")
+        self.getUserInfo(bodyLocations, bodySubLocations, text)
 
 
     # takes in a list of bodyLocations and all body subLocations and determines the user's affected areas
     # will return a sublocation
-    def getUserInfo(self, bodyLocations, bodySubLocations):
+    def getUserInfo(self, bodyLocations, bodySubLocations, text):
         # get bodyLocation and subLocation based on inputif applicable
-        bodyLocation = self.determineBodyLocation(bodyLocations, text)
-        bodySubLocation = self.determineBodySubLocation(bodySubLocations, text)
+        bodyLocation = self.findBodyLocation(bodyLocations, text)
+        bodySubLocation = self.findBodySubLocation(bodySubLocations, text)
+
 
         # bodyLocation = NULL, bodySubLocation = NULL
         # could not find the bodyLocation or subLocation specified
         if (bodyLocation is None and bodySubLocation is None):
             # keep asking for body location until they chose one of the selected
             while (bodyLocation is None):
-                print(
-                    "I'm not sure exactly where you are being affected. Could you pick from this list of body locations?")
+                print("I'm not sure exactly where you are in pain. Could you pick from this list of body locations?\n")
                 self.printBodyLocations(bodyLocations)
                 text = input()
-                bodyLocation = self.determineBodyLocation(bodyLocations, text)
+                bodyLocation = self.findBodySubLocation(bodyLocations, text)
 
         # bodyLocation = NULL, bodySubLocation = NOT NULL
         # user gave a subLocation but no bodyLocation
-        if (bodyLocation is None and bodySubLocation is not None):
+        #if(bodyLocation is None and bodySubLocation is not None):
+
         # keep bodyLocation as null, user just has sublocation
 
         # bodyLocation = NOT NULL, bodySubLocation = NULL
         # user gave a bodyLocation but no sublocation, must determine sublocation
-        if (bodyLocation is not None and bodySubLocation is None):
-            newBodySubLocations = self.detereminBodySubLocation(
-                bodyLocation)  # get subLocations from selected bodyLocation
+        if(bodyLocation is not None and bodySubLocation is None):
+            newBodySubLocations = self.getSubLocations(bodyLocation)  # get subLocations from selected bodyLocation
             newBodySubLocation = None
             # keep asking for body sublocation until they have chosen one of the selected
             while (newBodySubLocation is None):
-                print(
-                    "based on the body location that you chose: " + bodyLocation + " please select a subLocation from this list")
+                print("based on the body location that you chose: " + bodyLocation + " please select a subLocation from this list")
                 self.printBodySubLocations(newBodySubLocations)
                 newBodySubLocation = input()
 
-            bodySubLocation = newBodySubLocation
+            # update body sublocation
+            bodySubLocation = self.findBodySubLocation(newBodySubLocations, newBodySubLocation)
+
+        self.getSymptoms(bodySubLocation)
 
         # bodyLocation = NOT NULL, bodySubLocation = NOT NULL
         # user gave a location can go in either both a bodyLocation and subLocation
-        if (bodyLocation is not None and bodySubLocation is not None):
+        #if (bodyLocation is not None and bodySubLocation is not None):
+
+
+
 
     # don't do anything, just use sublocation
 
     # get all sublocations for all bodylocations
     def getAllSubLocations(self, bodyLocations):
+        bodySubLocations = []
         for bodyLocation in bodyLocations:
             bodySubLocations = bodySubLocations + self._diagnosisClient.loadBodySubLocations(bodyLocation["ID"])
         return bodySubLocations
 
-    # determines body location / sublocation & ID based on user input
-    def determineBodyLocation(bodyLocations, text):
+    # get subLocations based on bodyLocation
+    def getSubLocations(self, bodyLocation):
+        return self._diagnosisClient.loadBodySubLocations(bodyLocation["ID"])
+
+
+    # find body location / sublocation & ID based on user input
+    def findBodyLocation(self, bodyLocations, text):
         # look for input in each bodyLocation name
+        bodyLocation = ""
         for bodyL in bodyLocations:
             if text in bodyL["Name"]:
                 bodyLocation = bodyL  # set the body location
-
         return bodyLocation
 
     # check for body sublocation on first user input
-    def determineBodySubLocation(bodySubLocations, text):
+    def findBodySubLocation(self, bodySubLocations, text):
         # look for input use that instead of larger body Location
         for bodySL in bodySubLocations:
             if text in bodySL["Name"]:
                 bodySubLocation = bodySL  # set body sub location
-
         return bodySubLocation
 
-    # get subLocation based on bodyLocation
-    def determineBodySubLocation(self, bodyLocation):
-        return self._diagnosisClient.loadBodySubLocations(bodyLocation["ID"])
+
 
     # print out all body Locations
     def printBodyLocations(bodyLocations):
         for bodyLocation in bodyLocations:
-            print(bodyLocation["Name"])
+            print(bodyLocation["Name\n"])
 
     # print out all sublocation based on body location
     def printBodySubLocations(bodySubLocations):
         for bodySubLocation in bodySubLocations:
-            print(bodySubLocation["Name"])
+            print(bodySubLocation["Name\n"])
 
-    def simulate(self):
-        # Load body locations
-        selectedLocationID = self._loadBodyLocations()
+    # get symptoms of sublocation
+    def getSymptoms(self, bodySubLocation):
+        print("Experienced pain at subLocation: " + bodySubLocation["Name"])
+        symptoms = self._diagnosisClient.loadSublocationSymptoms(bodySubLocation["ID"], helper.SelectorStatus.Man)
 
-        # Load body sublocations
-        selectedSublocationID = self._loadBodySublocations(selectedLocationID)
+        self.printSymptoms(symptoms)
 
-        # Load body sublocations symptoms
-        selectedSymptoms = self._loadSublocationSymptoms(selectedSublocationID)
+        user_input = input()
+        selectedSymptomsIDs = list(map(int, user_input.split(',')))
 
-        # Load diagnosis
-        diagnosis = self._loadDiagnosis(selectedSymptoms)
+        diagnosis = self.getDiagnosis(selectedSymptomsIDs)
+        for d in diagnosis:
+            print("{0} - {1}% \n".format(d["Issue"]["Name"], d["Issue"]["Accuracy"]))
 
-        # Load specialisations
-        self._loadSpecialisations(selectedSymptoms)
+        #print(json.dumps(diagnosis))
 
-        # Load issue info
-        for issueId in diagnosis:
-            self._loadIssueInfo(issueId)
+    # print all symptoms based on bodyLocation
+    def printSymptoms(self, symptoms):
+        print("Which of these symptoms are you experiencing?")
+        print("Choose IDs separated by a comma")
+        for symptom in symptoms:
+            print(symptom["ID"], symptom["Name"])
 
-        # Load proposed symptoms
-        self._loadProposedSymptoms(selectedSymptoms)
 
-    def _writeHeaderMessage(self, message):
-        print("---------------------------------------------")
-        print(message)
-        print("---------------------------------------------")
 
-    def _writeRawOutput(self, methodName, data):
-        print("")
-        if self._printRawOutput:
-            print("+++++++++++++++++++++++++++++++++++++++++++++")
-            print("Response from method {0}: ".format(methodName))
-            print(json.dumps(data))
-            print("+++++++++++++++++++++++++++++++++++++++++++++")
+    # get diagnosis based on selected symptoms and user info like gender and age
+    def getDiagnosis(self, selectedSymptoms):
+        return self._diagnosisClient.loadDiagnosis(selectedSymptoms, helper.Gender.Male, 1988)
 
-    def _loadBodyLocations(self):
-        bodyLocations = self._diagnosisClient.loadBodyLocations()
-        self._writeRawOutput("loadBodyLocations", bodyLocations)
 
-        if not bodyLocations:
-            raise Exception("Empty body locations results")
-
-        self._writeHeaderMessage("Body locations:")
-        for bodyLocation in bodyLocations:
-            print("{0} ({1})".format(bodyLocation["Name"], bodyLocation["ID"]))
-
-        self._writeHeaderMessage("Sublocations for randomly selected location {0}".format(randomLocation["Name"]))
-        return randomLocation["ID"]
-
-    def _loadBodySublocations(self, locId):
-        bodySublocations = self._diagnosisClient.loadBodySubLocations(locId)
-        self._writeRawOutput("loadBodySubLocations", bodySublocations)
-
-        if not bodySublocations:
-            raise Exception("Empty body sublocations results")
-
-        for bodySublocation in bodySublocations:
-            print("{0} ({1})".format(bodySublocation["Name"], bodySublocation["ID"]))
-
-        randomSublocation = random.choice(bodySublocations)
-        self._writeHeaderMessage("Sublocations for randomly selected location {0}".format(randomSublocation["Name"]))
-        return randomSublocation["ID"]
 
     def _loadSublocationSymptoms(self, subLocId):
         symptoms = self._diagnosisClient.loadSublocationSymptoms(subLocId, helper.SelectorStatus.Man)
+
         self._writeRawOutput("loadSublocationSymptoms", symptoms)
 
         if not symptoms:
@@ -196,6 +173,8 @@ class SymptomChecker:
 
         selectedSymptoms = [randomSymptom]
         return selectedSymptoms
+
+
 
     def _loadDiagnosis(self, selectedSymptoms):
         self._writeHeaderMessage("Diagnosis")
@@ -284,4 +263,4 @@ class SymptomChecker:
 
 
 symptomChecker = SymptomChecker()
-symptomChecker.simulate()
+symptomChecker.start()
